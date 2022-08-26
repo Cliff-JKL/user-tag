@@ -1,13 +1,13 @@
-import { IsString, IsInt, IsUUID } from 'class-validator';
+import { IsString, IsInt, IsOptional } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
 
 export class CreateTagDto {
-  // TODO delete
-  @IsUUID()
-  readonly creator: string;
-
+  @ApiProperty()
   @IsString()
   readonly name: string;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsInt()
-  readonly sortOrder: number;
+  readonly sortOrder: number = 0;
 }

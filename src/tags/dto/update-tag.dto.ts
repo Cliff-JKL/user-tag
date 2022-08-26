@@ -1,4 +1,14 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateTagDto } from './create-tag.dto';
+import { IsInt, IsOptional, IsString } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
-export class UpdateTagDto extends PartialType(CreateTagDto) {}
+export class UpdateTagDto {
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  readonly name: string;
+
+  @ApiProperty({ required: false })
+  @IsInt()
+  @IsOptional()
+  readonly sortOrder: number;
+}
