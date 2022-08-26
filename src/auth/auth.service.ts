@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import { jwtConstants } from './constants';
+import { CreateUserDto } from "../users/dto/create-user.dto";
+import { LoginUserInterface, PartialUserInterface } from "../users/interfaces/user.interface";
 
 @Injectable()
 export class AuthService {
@@ -9,46 +13,86 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  // async validateUser(password: string, email: string, nickname: string): Promise<any> {
-  //   const user = await this.usersService.findOne(email);
-  //   if (user &&  user.nickname === nickname && user.password === password) {
-  //     const { password, ...result } = user;
-  //     return result;
-  //   }
-  //   return null;
-  // }
-
-  async signin(userData: any) {
-    const user = await this.usersService.findOne(userData.email);
-    if (user && user.password === userData.password) {
-      const payload = {
-        uid: user.uid,
-        email: user.email,
-        nickname: user.nickname,
-        password: user.password,
-      };
-
-      return {
-        token: this.jwtService.sign(payload),
-        expire: "expire time (in sec)",
-      };
-    }
+  async generateTokens(user: any) {
+    const payload = {
+      uid: user.uid,
+      email: user.email,
+      nickname: user.nickname,
+      password: user.password,
+    };
+    const [ accessToken, refreshToken ] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: jwtConstants.accessSecret,
+        expiresIn: "30m"
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: jwtConstants.refreshSecret,
+        expiresIn: "7d"
+      }),
+    ])
 
     return {
-      token: this.jwtService.sign(undefined),
-      expire: "expire time (in sec)",
+      accessToken: accessToken,
+      refreshToken: refreshToken,
     };
   }
 
-  // TODO update
-  // async login(user: any) {
-  //   const payload = {
-  //     nickname: user.nickname,
-  //     uid: user.uid,
-  //   };
-  //   return {
-  //     token: this.jwtService.sign(payload),
-  //     expire: "expire time (in sec)",
-  //   };
-  // }
+  async signUp(userData: CreateUserDto) {
+    const user = await this.usersService.create(userData);
+    return this.generateTokens(user);
+  }
+
+  async signin(userDto: CreateUserDto) {
+    const user = await this.usersService.findOneByEmail(userDto.email);
+    if (user && bcrypt.compareSync(userDto.password, user.password)) {
+      const tokens = await this.generateTokens(user);
+      // @ts-ignore
+      const decodedJwt: { [key: string]: any } = this.jwtService.decode(tokens.accessToken);
+      return {
+        token: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expire: decodedJwt.exp - decodedJwt.iat,
+      };
+    }
+
+    throw new NotFoundException();
+  }
+
+  async login(loginUserDto: LoginUserInterface) {
+    const user = await this.usersService.findOneByEmail(loginUserDto.email);
+    if (user && bcrypt.compareSync(loginUserDto.password, user.password)) {
+      const tokens = await this.generateTokens(user);
+      // @ts-ignore
+      const decodedJwt: { [key: string]: any } = this.jwtService.decode(tokens.accessToken);
+      return {
+        token: tokens.accessToken,
+        expire: decodedJwt.exp - decodedJwt.iat,
+      };
+    }
+
+    throw new NotFoundException();
+  }
+
+  async logout(userUid: string) {
+    // TODO update refreshToken in DB (if its not null) to null
+  }
+
+  async updateRefreshToken(userUid: string, refreshToken: string) {
+    // TODO: update rt in DB
+  }
+
+  async refreshTokens(userUid: string, refreshToken: string) {
+    const user = await this.usersService.findOneByUid(userUid);
+    if (!user) {
+      throw new NotFoundException();
+    }
+
+    // const rtMatches = await argon.verify(user.hashedRt, rt);
+    // if (!rtMatches) throw new ForbiddenException('Access Denied');
+
+    const tokens = await this.generateTokens(user);
+    await this.updateRefreshToken(user.uid, tokens.refreshToken);
+
+    return tokens;
+  }
 }

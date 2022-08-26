@@ -1,3 +1,4 @@
 export const jwtConstants = {
-  secret: 'secretKey',
+  accessSecret: 'authSecretKey',
+  refreshSecret: 'refreshSecretKey',
 };
