@@ -1,12 +1,20 @@
-import { IsString } from 'class-validator';
+import { IsString, IsEmail, Matches, MinLength } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
 
 export class CreateUserDto {
-  @IsString()
-  readonly email: string;
+  @ApiProperty()
+  @IsEmail()
+  email: string;
 
+  @ApiProperty()
   @IsString()
-  readonly nickname: string;
+  nickname: string;
 
+  @ApiProperty()
   @IsString()
-  readonly password: string;
+  @MinLength(8, { message: "The password must be at least 8 characters" })
+  @Matches(/\d+/, { message: "The password must contains at least one number character" })
+  @Matches(/[A-Z]+/, { message: "The password must contains at least one uppercase letter character" })
+  @Matches(/[a-z]+/, { message: "The password must contains at least one lowercase letter character" })
+  password: string;
 }
