@@ -8,56 +8,66 @@ import {
   UseGuards,
   Request,
   Session,
-  Delete,
-} from '@nestjs/common';
+  Query,
+  Delete, HttpCode, HttpStatus, ParseIntPipe
+} from "@nestjs/common";
 import { TagsService } from './tags.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
-import { Tag } from './entities/tag.entity';
 import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
+import { GetTagInterface, QueryTagInterface, TagInterface } from "./interfaces/tag.interface";
 
-@Controller('tags')
+@UseGuards(JwtAuthGuard)
+@Controller('tag')
 export class TagsController {
   constructor(private readonly tagsService: TagsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
   async create(
     @Body() createTagDto: CreateTagDto,
     @CurrentUser() user: User,
-  ): Promise<CreateTagDto> {
-    return this.tagsService.create(createTagDto, user.uid);
+  ): Promise<GetTagInterface> {
+    const tag = await this.tagsService.create(createTagDto, user.uid);
+    return {
+      "id": tag.id,
+      "name": tag.name,
+      "sortOrder": tag.sortOrder,
+    };
   }
 
-  // Currently ...
-  @UseGuards(JwtAuthGuard)
   @Get()
-  async findAll(@CurrentUser() user: User): Promise<Tag[]> {
-    return this.tagsService.findAll(user.uid);
+  async findAll(
+    @Query('sortByOrder') sortByOrder,
+    @Query('sortByName') sortByName,
+    @Query('offset') offset: number,
+    @Query('length') length: number,
+    @CurrentUser() user: User
+  ): Promise<QueryTagInterface> {
+    return this.tagsService.findAll(sortByOrder, sortByName, +offset, +length);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Tag | undefined> {
-    return this.tagsService.findById(+id);
+  findOne(@Param('id') id: string): Promise<TagInterface | undefined> {
+    return this.tagsService.findOneById(+id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Put(':id')
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateTagDto: UpdateTagDto,
     @CurrentUser() user: User,
-  ): Promise<UpdateTagDto> {
+  ): Promise<TagInterface> {
     return this.tagsService.update(+id, updateTagDto, user.uid);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string, @CurrentUser() user: User): Promise<Tag> {
-    // return this.tagsService.delete(id, user.uid);
-    return undefined;
+  @HttpCode(HttpStatus.OK)
+  async delete(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User
+  ): Promise<void> {
+    return this.tagsService.delete(+id, user.uid);
   }
 }
