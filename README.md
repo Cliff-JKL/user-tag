@@ -2,7 +2,7 @@
 
 ## Description
 
-This is a test task app with User and Tag Entities CRUD realisation.
+This is a test task app with User and Tag Entities CRUD realization.
 
 The app is built with NestJS framework and PostgreSQL Database.
 

@@ -12,13 +12,33 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  async signup(@Body() createUserDto : CreateUserDto) {
-    return this.authService.signUp(createUserDto);
+  async signup(@Res({ passthrough: true }) res, @Body() createUserDto : CreateUserDto) {
+    const tokenData = await this.authService.signUp(createUserDto);
+    // add secure: true in options ?
+    res.cookie("refreshToken", tokenData.refreshToken, {
+      maxAge: tokenData.rtExpire,
+      path: "/api/auth",
+      httpOnly: true
+    });
+    return {
+      token: tokenData.accessToken,
+      expire: tokenData.atExpire / 1000,
+    };
   }
 
   @Post('signin')
-  async signin(@Body() userDto: CreateUserDto) {
-    return this.authService.signin(userDto);
+  async signin(@Res({ passthrough: true }) res, @Body() userDto: CreateUserDto): Promise<{ token: string, expire: number }> {
+    const tokenData = await this.authService.signin(userDto);
+    // add secure: true in options ?
+    res.cookie("refreshToken", tokenData.refreshToken, {
+      maxAge: tokenData.rtExpire,
+      path: "/api/auth",
+      httpOnly: true
+    });
+    return {
+      token: tokenData.accessToken,
+      expire: tokenData.atExpire / 1000,
+    };
   }
 
   @Post('login')
@@ -29,14 +49,29 @@ export class AuthController {
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@CurrentUser() user: any) {
-    return this.authService.refreshTokens(user.uid, user.refreshToken);
+  async refresh(@CurrentUser() user: any, @Res({ passthrough: true }) res) {
+    const refreshedTokenData = await this.authService.refreshTokens(user.uid, user.refreshToken);
+    res.cookie("refreshToken", refreshedTokenData.refreshToken, {
+      maxAge: refreshedTokenData.rtExpire,
+      path: "/api/auth",
+      httpOnly: true
+    });
+    return {
+      token: refreshedTokenData.accessToken,
+      expire: refreshedTokenData.atExpire / 1000,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: User, @Request() req) {
-    req.logout(() => this.authService.logout(user.uid));
+  async logout(@CurrentUser() user: User, @Request() req, @Res({ passthrough: true }) res) {
+    req.logout(() => {
+      this.authService.logout(user.uid);
+      res.cookie("refreshToken", "", {
+        expires: new Date(),
+        path: "/api/auth",
+      });
+    });
   }
 }

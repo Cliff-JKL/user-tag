@@ -34,25 +34,22 @@ export class AuthService {
     return {
       accessToken: accessToken,
       refreshToken: refreshToken,
+      atExpire: 30 * 60 * 1000,
+      rtExpire: 7 * 24 * 60 * 60 * 1000,
     };
   }
 
   async signUp(userData: CreateUserDto) {
     const user = await this.usersService.create(userData);
-    return this.generateTokens(user);
+    return await this.generateTokens(user);
+    // @ts-ignore
+    // const decodedJwt: { [key: string]: any } = this.jwtService.decode(tokens.accessToken);
   }
 
   async signin(userDto: CreateUserDto) {
     const user = await this.usersService.findOneByEmail(userDto.email);
     if (user && bcrypt.compareSync(userDto.password, user.password)) {
-      const tokens = await this.generateTokens(user);
-      // @ts-ignore
-      const decodedJwt: { [key: string]: any } = this.jwtService.decode(tokens.accessToken);
-      return {
-        token: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expire: decodedJwt.exp - decodedJwt.iat,
-      };
+      return await this.generateTokens(user);
     }
 
     throw new NotFoundException();
@@ -61,13 +58,7 @@ export class AuthService {
   async login(loginUserDto: LoginUserInterface) {
     const user = await this.usersService.findOneByEmail(loginUserDto.email);
     if (user && bcrypt.compareSync(loginUserDto.password, user.password)) {
-      const tokens = await this.generateTokens(user);
-      // @ts-ignore
-      const decodedJwt: { [key: string]: any } = this.jwtService.decode(tokens.accessToken);
-      return {
-        token: tokens.accessToken,
-        expire: decodedJwt.exp - decodedJwt.iat,
-      };
+      return await this.generateTokens(user);
     }
 
     throw new NotFoundException();
