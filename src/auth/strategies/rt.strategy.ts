@@ -7,7 +7,6 @@ import { jwtConstants } from '../constants';
 export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor() {
     super({
-      // jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       jwtFromRequest: ExtractJwt.fromExtractors([
         RtStrategy.extractJWT,
         ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -17,16 +16,19 @@ export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
     });
   }
 
-  private static extractJWT(@Req() req) : string | null {
-    if (req.cookies && "refreshToken" in req.cookies && req.cookies.refreshToken.length > 0) {
+  private static extractJWT(@Req() req): string | null {
+    if (
+      req.cookies &&
+      'refreshToken' in req.cookies &&
+      req.cookies.refreshToken.length > 0
+    ) {
       return req.cookies.refreshToken;
     }
     return null;
-    // return req.cookies.refreshToken ?? req.cookies.refreshToken : null;
   }
 
   async validate(@Req() req, payload: any) {
-    const refreshToken = req.cookies["refreshToken"];
+    const refreshToken = req.cookies['refreshToken'];
     return {
       ...payload,
       refreshToken,
